@@ -1,5 +1,7 @@
-CryptoBlocker
+CryptoBlocker Freez.it 
 ==============
+
+Ths fork of the script is specific created for our own company Freez.it. We combined the fsrm.experiant.ca API with our own so we now have the ability to update the api list ourselves. We also created a fork so we could develop this script more specific for our own needs.
 
 This is a solution to block users infected with different ransomware variants.
 
