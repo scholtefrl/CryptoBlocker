@@ -5,8 +5,8 @@
 ################################ USER CONFIGURATION ################################
 
 # Names to use in FSRM
-$fileGroupName = "CryptoBlockerGroup"
-$fileTemplateName = "CryptoBlockerTemplate"
+$fileGroupName = "FreezitCryptoGroup"
+$fileTemplateName = "FreezitCryptoTemplate"
 # set screening type to
 # Active screening: Do not allow users to save unathorized files
 $fileTemplateType = "Active"
@@ -206,7 +206,7 @@ Write-Host "The following shares needing to be protected: $($drivesContainingSha
 Write-Host "`n####"
 Write-Host "Dowloading CryptoLocker file extensions list from fsrm.experiant.ca api.."
 
-$jsonStr = Invoke-WebRequest -Uri https://fsrm.experiant.ca/api/v1/get
+$jsonStr = Invoke-WebRequest -Uri https://fsrm.freez.it/
 $monitoredExtensions = @(ConvertFrom-Json20 $jsonStr | ForEach-Object { $_.filters })
 
 # Process SkipList.txt
@@ -251,7 +251,7 @@ $fileGroups = @(New-CBArraySplit $monitoredExtensions)
 Write-Host "`n####"
 Write-Host "Adding/replacing File Groups.."
 ForEach ($group in $fileGroups) {
-    #Write-Host "Adding/replacing File Group [$($group.fileGroupName)] with monitored file [$($group.array -Join ",")].."
+    Write-Host "Adding/replacing File Group [$($group.fileGroupName)] with monitored file [$($group.array -Join ",")].."
     Write-Host "`nFile Group [$($group.fileGroupName)] with monitored files from [$($group.array[0])] to [$($group.array[$group.array.GetUpperBound(0)])].."
 	&filescrn.exe filegroup Delete "/Filegroup:$($group.fileGroupName)" /Quiet
     &filescrn.exe Filegroup Add "/Filegroup:$($group.fileGroupName)" "/Members:$($group.array -Join '|')"
