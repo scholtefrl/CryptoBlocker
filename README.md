@@ -38,6 +38,10 @@ By default, this script will enumarate all the shares running on the server and 
 
 Sometimes you have file screens that you want to add that are not included in the download from Experiant. In this case, you can simply create a file named <tt>IncludeList.txt</tt> and put the screens you would like to add, one per line. If this file does not exist, only the screens from Experiant are included.
 
+<b>ExcludeList.txt</b>
+
+This version of the script creates an specific filegroup "RansomewareExclusion". File paths specified in the ExcludeList.txt only apply the RansomewareExclusion filter. This way only a select number of extensions are whitelisted on the given Filepath specified in ExlcudeLists.txt
+
 <b>Disclaimer</b>
 
 This script is provided as is.  I can not be held liable if this does not thwart a ransomware infection, causes your server to spontaneously combust, results in job loss, etc.
