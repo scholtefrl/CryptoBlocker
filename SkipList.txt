@@ -1,0 +1,12 @@
+#
+# Add one filescreen per line that you want to ignore
+#
+# For example, if *.doc files are being blocked by the list but you want 
+# to allow them, simply add a new line in this file that exactly matches 
+# the filescreen:
+#
+# *.doc
+#
+# The script will check this file every time it runs and remove these 
+# entries before applying the list to your FSRM implementation.
+#
