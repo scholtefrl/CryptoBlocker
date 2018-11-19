@@ -5,8 +5,8 @@
 ################################ USER CONFIGURATION ################################
 
 # Names to use in FSRM
-$fileGroupName = "FreezitCryptoGroup"
-$fileTemplateName = "FreezitCryptoTemplate"
+$fileGroupName = "CryptoBlockerGroup"
+$fileTemplateName = "CryptoBlockerTemplate"
 # set screening type to
 # Active screening: Do not allow users to save unathorized files
 $fileTemplateType = "Active"
@@ -179,9 +179,17 @@ else
 }
 
 ## Enumerate shares
+Write-Host "`n####"
+Write-Host "Processing ProtectList.."
+### move file from C:\Windows\System32 or whatever your relative path is to the directory of this script
 if (Test-Path .\ProtectList.txt)
 {
-    $drivesContainingShares = Get-Content .\ProtectList.txt | ForEach-Object { $_.Trim() }
+    Move-Item -Path .\ProtectList.txt -Destination $PSScriptRoot\ProtectList.txt -Force
+}
+
+if (Test-Path $PSScriptRoot\ProtectList.txt)
+{
+    $drivesContainingShares = Get-Content $PSScriptRoot\ProtectList.txt | ForEach-Object { $_.Trim() }
 }
 Else {
     $drivesContainingShares =   @(Get-WmiObject Win32_Share | 
@@ -206,15 +214,21 @@ Write-Host "The following shares needing to be protected: $($drivesContainingSha
 Write-Host "`n####"
 Write-Host "Dowloading CryptoLocker file extensions list from fsrm.experiant.ca api.."
 
-$jsonStr = Invoke-WebRequest -Uri https://fsrm.freez.it/
+$jsonStr = Invoke-WebRequest -Uri https://fsrm.experiant.ca/api/v1/get
 $monitoredExtensions = @(ConvertFrom-Json20 $jsonStr | ForEach-Object { $_.filters })
 
 # Process SkipList.txt
 Write-Host "`n####"
 Write-Host "Processing SkipList.."
-If (Test-Path .\SkipList.txt)
+### move file from C:\Windows\System32 or whatever your relative path is to the directory of this script
+if (Test-Path .\SkipList.txt)
 {
-    $Exclusions = Get-Content .\SkipList.txt | ForEach-Object { $_.Trim() }
+    Move-Item -Path .\SkipList.txt -Destination $PSScriptRoot\SkipList.txt -Force
+}
+
+If (Test-Path $PSScriptRoot\SkipList.txt)
+{
+    $Exclusions = Get-Content $PSScriptRoot\SkipList.txt | ForEach-Object { $_.Trim() }
     $monitoredExtensions = $monitoredExtensions | Where-Object { $Exclusions -notcontains $_ }
 
 }
@@ -234,13 +248,20 @@ Else
 # entries before applying the list to your FSRM implementation.
 #
 '@
-    Set-Content -Path .\SkipList.txt -Value $emptyFile
+    Set-Content -Path $PSScriptRoot\SkipList.txt -Value $emptyFile
 }
 
 # Check to see if we have any local patterns to include
-If (Test-Path .\IncludeList.txt)
+Write-Host "`n####"
+Write-Host "Processing IncludeList.."
+### move file from C:\Windows\System32 or whatever your relative path is to the directory of this script
+if (Test-Path .\IncludeList.txt)
 {
-    $includeExt = Get-Content .\IncludeList.txt | ForEach-Object { $_.Trim() }
+    Move-Item -Path .\IncludeList.txt -Destination $PSScriptRoot\IncludeList.txt -Force
+}
+If (Test-Path $PSScriptRoot\IncludeList.txt)
+{
+    $includeExt = Get-Content $PSScriptRoot\IncludeList.txt | ForEach-Object { $_.Trim() }
     $monitoredExtensions = $monitoredExtensions + $includeExt
 }
 
@@ -251,7 +272,7 @@ $fileGroups = @(New-CBArraySplit $monitoredExtensions)
 Write-Host "`n####"
 Write-Host "Adding/replacing File Groups.."
 ForEach ($group in $fileGroups) {
-    Write-Host "Adding/replacing File Group [$($group.fileGroupName)] with monitored file [$($group.array -Join ",")].."
+    #Write-Host "Adding/replacing File Group [$($group.fileGroupName)] with monitored file [$($group.array -Join ",")].."
     Write-Host "`nFile Group [$($group.fileGroupName)] with monitored files from [$($group.array[0])] to [$($group.array[$group.array.GetUpperBound(0)])].."
 	&filescrn.exe filegroup Delete "/Filegroup:$($group.fileGroupName)" /Quiet
     &filescrn.exe Filegroup Add "/Filegroup:$($group.fileGroupName)" "/Members:$($group.array -Join '|')"
@@ -281,6 +302,50 @@ $drivesContainingShares | ForEach-Object {
     Write-Host "File Screen for [$_] with Source Template [$fileTemplateName].."
     &filescrn.exe Screen Delete "/Path:$_" /Quiet
     &filescrn.exe Screen Add "/Path:$_" "/SourceTemplate:$fileTemplateName"
+}
+
+# Create Exeption filegroup "RansomwareExclusion"
+Write-Host "`n####"
+Write-Host "Create RansomwareExclusion group"
+
+$CheckFileGroup = (Get-FsrmFileGroup -name "RansomwareExclusion")
+if ($CheckFileGroup) 
+{
+    Write-Host "The Filegroup alreaday exists"
+}else{
+    Write-Host "The Filegroup not exists and we'll create it now..."
+    New-FsrmFileGroup -Name "RansomwareExclusion" -IncludePattern @("*.dezeextensiezaljenooittegenkomen")
+}
+
+
+
+# Delete all Folder Exeptions not present in Exclude.txt
+Write-Host "`n####"
+Write-Host "Identify all local drives and delete old Exeptions"
+
+$drives = GET-WMIOBJECT win32_logicaldisk | Select -ExpandProperty DeviceID
+Foreach ($drive in $drives)
+{
+    &filescrn.exe Exception Delete /Path:$drive\... /quiet
+}
+
+
+# Add Folder Exceptions from ExcludeList.txt
+Write-Host "`n####"
+Write-Host "Processing ExcludeList.."
+### move file from C:\Windows\System32 or whatever your relative path is to the directory of this script
+if (Test-Path .\ExcludePaths.txt)
+{
+    Move-Item -Path .\ExcludePaths.txt -Destination $PSScriptRoot\ExcludePaths.txt -Force
+}
+If (Test-Path $PSScriptRoot\ExcludePaths.txt) {
+    Get-Content $PSScriptRoot\ExcludePaths.txt | ForEach-Object {
+        If (Test-Path $PSScriptRoot) {
+            # Build the argument list with all required fileGroups
+            #&filescrn.exe Exception delete /Path:"$_"\* /quiet
+			&filescrn.exe Exception Add /Path:"$_" /Add-Filegroup:RansomwareExclusion
+        }
+    }
 }
 
 # Cleanup temporary files if they were created
