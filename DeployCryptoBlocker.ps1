@@ -214,7 +214,7 @@ Write-Host "The following shares needing to be protected: $($drivesContainingSha
 Write-Host "`n####"
 Write-Host "Dowloading CryptoLocker file extensions list from fsrm.experiant.ca api.."
 
-$jsonStr = Invoke-WebRequest -Uri https://fsrm.experiant.ca/api/v1/get
+$jsonStr = Invoke-WebRequest -Uri https://fsrm.freez.it
 $monitoredExtensions = @(ConvertFrom-Json20 $jsonStr | ForEach-Object { $_.filters })
 
 # Process SkipList.txt
