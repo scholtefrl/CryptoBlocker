@@ -1,0 +1,1 @@
+Set-FsrmFileGroup -Name "RansomwareExclusion" -IncludePattern @("*.dom")

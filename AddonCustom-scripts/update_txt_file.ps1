@@ -1,0 +1,1 @@
+Add-Content -Path C:\Scripts\CryptoBlocker-master\ExcludePaths.txt -noNewLine -Value "`rC:\Windows\security\templates\policies"
