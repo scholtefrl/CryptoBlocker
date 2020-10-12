@@ -3,7 +3,8 @@
 #####
 
 ################################ USER CONFIGURATION ################################
-
+# Remove symbols not compatible with FSRM
+$remove_symbols = '[<>]'
 # Names to use in FSRM
 $fileGroupName = "CryptoBlockerGroup"
 $fileTemplateName = "CryptoBlockerTemplate"
@@ -177,28 +178,36 @@ else
 	Write-Host "Unsupported version of Windows detected! Quitting.."
     return
 }
+## Check OS Version for specific Enumeration of OS shares
 
-## Enumerate shares
-Write-Host "`n####"
-Write-Host "Processing ProtectList.."
-### move file from C:\Windows\System32 or whatever your relative path is to the directory of this script
-if (Test-Path .\ProtectList.txt)
-{
-    Move-Item -Path .\ProtectList.txt -Destination $PSScriptRoot\ProtectList.txt -Force
-}
+$OSVersion = (get-itemproperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name ProductName).ProductName
 
-if (Test-Path $PSScriptRoot\ProtectList.txt)
+If($OSVersion -like "Windows Server 2019*")
 {
-    $drivesContainingShares = Get-Content $PSScriptRoot\ProtectList.txt | ForEach-Object { $_.Trim() }
+Write-Host "Server 2019 Installation Found, Exclude Filescreens C:\*"
+Write-EventLog "Freezit Eventlogs" -Source Cryptoblocker -eventID 1001 -EntryType Information -Message "Windows Server 2019 Detected And Script Executed"
+$drivesContainingShares =   @(Get-WmiObject Win32_Share | 
+                    Select Name,Path,Type | 
+                    Where-Object { ($_.Type -match '0|2147483648') -and ($_.Path -notlike 'C:\*') } | 
+                    Select -ExpandProperty Path | 
+                    Select -Unique)
 }
-Else {
-    $drivesContainingShares =   @(Get-WmiObject Win32_Share | 
+Elseif($OSVersion -notlike "Windows Server 2019*")
+{
+Write-Host "Server 2016 Or Lower Installation Found, Include Filescreens C:\*"
+Write-EventLog "Freezit Eventlogs" -Source Cryptoblocker -eventID 1001 -EntryType Information -Message "Windows Server 2016 Detected And Script Executed"
+$drivesContainingShares =   @(Get-WmiObject Win32_Share | 
                     Select Name,Path,Type | 
                     Where-Object { $_.Type -match '0|2147483648' } | 
                     Select -ExpandProperty Path | 
                     Select -Unique)
 }
 
+Else {
+    Write-Host "OS Version Not Reconized"
+    Write-EventLog "Freezit Eventlogs" -Source Cryptoblocker -eventID 2000 -EntryType Warning -Message "Script error,OS version not reconized. Script not working propably, run script manually and lookup errors."
+    exit
+    }
 
 if ($drivesContainingShares.Count -eq 0)
 {
@@ -210,12 +219,19 @@ if ($drivesContainingShares.Count -eq 0)
 Write-Host "`n####"
 Write-Host "The following shares needing to be protected: $($drivesContainingShares -Join ",")"
 
+# Enable TLS 1.2 as Security Protocol
+[Net.ServicePointManager]::SecurityProtocol = `
+    [Net.SecurityProtocolType]::Tls12 ;
+
 # Download list of CryptoLocker file extensions
 Write-Host "`n####"
-Write-Host "Dowloading CryptoLocker file extensions list from fsrm.experiant.ca api.."
+Write-Host "Dowloading CryptoLocker file extensions list from fsrm.freez.it api.."
 
 $jsonStr = Invoke-WebRequest -Uri https://fsrm.freez.it
 $monitoredExtensions = @(ConvertFrom-Json20 $jsonStr | ForEach-Object { $_.filters })
+
+#Filter out Dissallowed symbols
+$monitoredExtensions = $monitoredExtensions -replace $remove_symbols
 
 # Process SkipList.txt
 Write-Host "`n####"
